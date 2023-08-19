@@ -1,0 +1,271 @@
+---
+title: "HW05"
+author: "Ian McConachie"
+date: 2/8/2022
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem A
+
+**Past studies suggest that the rate $\lambda$ of accidents at an intersection has a mean of 3 per week, and a standard deviation of 0.5. $\lambda$ can be modeled as having a Normal distribution.**
+
+**(a) The observed number of accidents over two years is given at http:// pages.uoregon.edu/dlevin/DATA/accidents.txt. Use rstan to simulate 2000 draws from the posterior distribution.**
+**Produce a histogram of the simulations. (Use the function stan_hist.)**
+
+To do this, first we will extract the data from the .txt file provided online:
+
+```{r}
+set.seed(1)
+xdata <- read.delim("http://pages.uoregon.edu/dlevin/DATA/accidents.txt", header=TRUE)
+```
+
+Our model for accidents at this intersection is a Poisson distribution with a rate
+parameter of $\lambda$ with the prior distribution for lambda being normal with mean 3 and a standard deviation of 0.5.
+
+Using this hierarchical model for accidents at the intersection, we can simulate the posterior distribution with the following stan code (comments removed from stan code for simplicity's sake):
+
+```
+data {
+  int<lower=0> N;
+  int<lower=0> accidents[N];
+  real m;
+}
+
+parameters {
+  real<lower=0> lamb;
+}
+
+model {
+  lamb ~ normal(m, 0.5);
+  accidents ~ poisson(lamb);
+}
+```
+
+We can then use Stan and R together to generate 2000 samples from our simulated posterior distribution:
+
+
+```{r, cache=TRUE, message=FALSE}
+ac = unlist(xdata)
+stan_data <- list(N = 104, ac = ac, m = 3)
+library(rstan)
+fit1 <- stan(
+file = "bayes_pred_A.stan",
+data = stan_data,
+chains = 4,
+warmup = 1000,
+iter = 2000,
+cores = 2,
+)
+```
+
+After generating the 2000 simulated samples, we can plot them on a histogram using stan_hist and get the following:
+
+```{r, message=FALSE}
+library(rstan)
+rstan_options(auto_write = TRUE)
+stan_hist(fit1)
+```
+
+
+**(b) Use the function posterior_interval from the rstanarm package to produce a 95% credible interval, which is an interval which contains 95% of the mass of the posterior distribution of $\lambda$.**
+
+A 95% credible interval for the parameter $\lambda$ given our posterior distribution can be found using the following r code:
+
+```{r, message=FALSE}
+library(rstanarm)
+posterior_interval(
+  as.matrix(fit1),
+  prob = 0.95,
+  type = "central",
+  pars = "lambda",
+)
+```
+
+**(c) What is the approximate Bayes’ estimate of $\lambda$**
+
+We can find the Bayes' estimate for $\lambda$ by finding the expected value of the posterior distribution for $\lambda$. 
+
+Here, we can approximate this expected value by finding the sample average for our simulated 2000 samples from the posterior distribution. The sample average for our simulated samples from the posterior distribution necessarily trends towards the true expected value of the posterior distribution as n increases by the Weak Law of Large Numbers. 2000 is a sufficiently large n for us to approximate the mean using the sample average and therefore, we can approximate our Bayes' estimate using the following code:
+
+```{r}
+approx_Bayes = mean(as.matrix(fit1, "lamb"))
+print(approx_Bayes)
+```
+
+**(d) If you moved the mean of the prior distribution to 2, what happens to the Bayes’ estimate.**
+
+We can approximate the Baye's estimate if the mean of the prior distirbution was moved to 2 using much of the same code we used above. The only thing we would need to change would be to input the mean as 2 into our stan code. We can do this with the following code:
+
+```{r, cache=TRUE, message=FALSE}
+stan_data <- list(N = 104, ac = ac, m = 2)
+library(rstan)
+fit2 <- stan(
+file = "bayes_pred_A.stan",
+data = stan_data,
+chains = 4,
+warmup = 1000,
+iter = 2000,
+cores = 2,
+)
+```
+
+Then, we can find the Baye's estimate for this modified posterior distribution in the following way:
+
+```{r}
+approx_Bayes2 = mean(as.matrix(fit2, "lamb"))
+print(approx_Bayes2)
+```
+
+
+**(e) There is another 10 years of data at http://pages.uoregon.edu/dlevin/DATA/accidents2.txt. Using this additional data, what is now the Bayes’ estimate of the rate $\lambda$?**
+
+To find out what our new Bayes' estimate is we can augment the code we wrote above to integrate the new data. First we get the data from where it is hosted on the web:
+
+```{r}
+set.seed(1)
+xdata2 <- read.delim("http://pages.uoregon.edu/dlevin/DATA/accidents2.txt", header=TRUE)
+```
+
+We can then use the same exact stan code (because it allows us to input the size of the data vector) to simulate the posterior distribution of $\lambda$ with its given prior distribution and realized data. The code is as follows:
+
+```{r, cache=TRUE, message=FALSE}
+ac2 = unlist(xdata2)
+stan_data <- list(N = 520, ac = ac2, m = 3)
+library(rstan)
+fit3 <- stan(
+file = "bayes_pred_A.stan",
+data = stan_data,
+chains = 4,
+warmup = 1000,
+iter = 2000,
+cores = 2,
+)
+```
+
+We can then find the Bayes' estimate from the generated fit just like above:
+
+```{r}
+approx_Bayes3 = mean(as.matrix(fit3, "lamb"))
+print(approx_Bayes3)
+```
+
+**(f) If you moved the mean of the prior distribution to 2 with the additional data, what is now the Bayes’ estimate of $\lambda$?**
+
+If we moved the mean of the prior distribution to 2 and included the additional data, we could re-use the data from xdata2 which includes the additional data points and change our mean parameter m in the stan code to 2. We can do this with the following code:
+
+
+```{r, cache=TRUE, message=FALSE}
+stan_data <- list(N = 520, ac = ac2, m = 2)
+library(rstan)
+fit4 <- stan(
+file = "bayes_pred_A.stan",
+data = stan_data,
+chains = 4,
+warmup = 1000,
+iter = 2000,
+cores = 2,
+)
+```
+
+Then, just like above, we can calculate an approximation of our Bayes' estimate by finding the sample average of the simulated 2000 draws from our posterior distribution:
+
+```{r}
+approx_Bayes4 = mean(as.matrix(fit4, "lamb"))
+print(approx_Bayes4)
+```
+
+
+## Problem B
+
+**Suppose there are five different cards types, and you have a large stack of cards which is randomly ordered with an equal amount of each type.**
+**Let p be the probability I can correctly guess a card without seeing it. I claim to have extra sensory perception (ESP) which means I have a better than chance probability of correctly guessing the card type.**
+
+**(a) In 100 guesses, I obtain 44 correct responses. What do you estimate is p based on this data? Given the data, what do you think of my claim that I have ESP?**
+
+If we are solely going off the data, I would estimate p to be 0.44 (i.e. there is a 44% chance of you guessing correctly). This makes sense on an intuitive level because with the only information we have, you are correct 44% of the time; however, this is also backed up with statistical reasoning.
+
+The responses in the ESP test can be modeled with a Bernoulli distribution because the guess of each card can be described as a random variable with a probability $p$ of "success" (correct guess) and a probability $1-p$ of "failure" (wrong guess). Let our data set of 100 responses to the ESP test be described as the realized values $x_1, \dots, x_{100}$ of the i.i.d. Bernoulli random variables $X_1, \dots, X_{100}$ with probability $p$. NOTE: if we are talking about the *sum* of the 100 Bernoulli random variables (i.e. number of correct guesses), we would model it with a distribution of binomial(p, 100).
+
+One of the most common estimators for unknown parameters of random variables is the Maximum Likelihood Estimator (the MLE) which for p in a sample of $n$ Bernoulli random variables we have calculated to be 
+$$\hat{p} = \frac{\sum_{i=1}^{n}x_i}{n}$$
+
+Here, if we let $x_i = 1$ when you guess correctly on the $i$th card and $x_i = 0$ otherwise, we end up with $\hat{p} = 0.44$. 
+
+Given only this estimator and no assumptions about the prior distribution of $p$, your claim that you have ESP is fairly well supported. If it was simply a random chance, we would expect that you would be correct 1/5 of the time (i.e. get 20 out of 100 correct guesses). In an intuitive sense, 44 out of 100 is a lot more than 20 out of 100, so your claim is not that unbelievable.
+
+**(b) Now before you see any data, what is your belief in ESP? Given these beliefs, formulate a prior distribution on p. (Note that if I have no ESP, $p = 1/5$.)**
+
+I don't really believe in ESP, but I guess I like to stay open-minded, so I'll give the benefit of the doubt to people who might claim they have ESP. Given this prior belief, I would set the prior distribution of $p$ to be normal with a mean of $0.2$ and a standard deviation of $0.025$.
+
+
+**(c) Using this prior information, what now do you think of my 44 correct guesses? What do you estimate p to be now?**
+
+In order to estimate p and take in account our prior distribution, we can use a Bayes' estimate composed of a weighted sum of the parameter suggested by the data and the one suggested by our prior assumptions (which can be calculated by finding the mean of the posterior distribution for p). Because the posterior distribution of p is impossible to compute exactly with the assumed prior distribution, we can simulate a posterior distribution with stan and generate samples from this to approximate our Bayes estimate for p.
+
+First, let us write some R code to format our data in a way that works well in R and Stan:
+
+```{r}
+# Making an empty list
+ESP_data <- vector(length = 100)
+
+# Filling first 44 locations with 1 (placement of correct guesses does
+# not matter here)
+for (i in 1:44){
+  ESP_data[i] = 1
+}
+## Last 56 locations get 0's
+for (i in 45:100){
+  ESP_data[i]=0
+}
+```
+
+The following stan code is what we will use to simulate our posterior distribution for this set up (with comments removed for the sake of brevity):
+
+```
+  data {
+    int<lower=0> N;
+    int<lower=0> esp[N];
+  }
+  
+  parameters {
+    real<lower=0,upper=1> p;
+  }
+  
+  
+  model {
+    p ~ normal(0.2, 0.025);
+    esp ~ bernoulli(p);
+  }
+```
+
+We can then use the following R code in conjunction with our stan code to generate samples from our simulated posterior distribution:
+
+```{r, cache=TRUE, message=FALSE}
+stan_data <- list(N = 100, esp=ESP_data)
+library(rstan)
+fit5 <- stan(
+file = "bayes_pred_B.stan",
+data = stan_data,
+chains = 4,
+warmup = 1000,
+iter = 2000,
+cores = 2,
+)
+```
+Now we can find the approximate Bayes' estimate using the generated sample from the simulated posterior distribution in much the same way we did for the previous problems, the r code is as follows:
+
+```{r}
+approx_Bayes5 = mean(as.matrix(fit5, "p"))
+print(approx_Bayes5)
+```
+
+Therefore, taking my prior assumptions about the existence of ESP into account along with the data we got from the 100 guesses you made about the ESP cards, I would estimate p to be around the value seen above which is what we would expect using a Bayesian statistical model.
+
+
+
