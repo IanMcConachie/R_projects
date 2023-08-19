@@ -1,0 +1,39 @@
+---
+title: "462_HW3"
+subtitle: "Ian McConachie"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+My code for creating a simulation of a sample of 15 from a exponential distribution with parameter lambda = 1. Doing the simulation 1000 times to compile a list of lambda-hat statistics in order to find our confidence interval.
+
+```{r sim}
+lambhat_list = 1:1000
+for (i in 1:1000){
+  X = rexp(15, 1)
+  lamb_hat = 1/mean(X)
+  lambhat_list[i] = lamb_hat
+}
+```
+
+After running this code, I used the following command and variations of it to estimate the 95% confidence interval for (lamb_hat)/(lambda): \
+
+ sum(as.numeric(lambhat_list > 2))/length(lambhat_list) "
+
+## Including Plots
+
+Plotting our data for visualization purposes. Code for visualization included below
+
+```{r hist}
+library(ggplot2)
+mydata = data.frame(lambhat_list)
+ggplot(mydata,aes(lambhat_list))+geom_histogram(bins = 30)
+```
+
