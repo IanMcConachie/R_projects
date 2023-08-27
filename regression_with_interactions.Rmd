@@ -3,6 +3,7 @@ title: "HW 3  Math 463 Spring 2022"
 author: "Ian McConachie"
 date: "4/20/2022"
 output:
+  word_document: default
   html_document: default
   pdf_document: default
 ---

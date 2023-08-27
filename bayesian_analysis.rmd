@@ -1,8 +1,9 @@
 ---
 title: "HW05"
 author: "Ian McConachie"
-date: 2/8/2022
+date: "2/8/2022"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
 ---
